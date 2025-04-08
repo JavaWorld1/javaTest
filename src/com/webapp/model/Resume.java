@@ -2,10 +2,7 @@ package com.webapp.model;
 
 import java.io.Serial;
 import java.io.Serializable;
-import java.util.EnumMap;
-import java.util.Map;
-import java.util.Objects;
-import java.util.UUID;
+import java.util.*;
 
 /**
  * Initial resume class
@@ -88,19 +85,52 @@ public class Resume implements Comparable<Resume>, Serializable {
 
     @Override
     public String toString() {
-        return String.format(
-                """
-                        Resume{
-                            uuid='%s'
-                            fullName='%s'
-                            contacts=%s
-                            sections=%s
-                        }""", uuid, fullName, contacts, sections);
+        return "Resume{" +
+                "uuid='" + uuid + '\'' +
+                ", fullName='" + fullName + '\'' +
+                ", contacts=" + contacts +
+                ", sections=" + sections +
+                '}';
     }
 
     @Override
     public int compareTo(Resume o) {
         int cmp = fullName.compareTo(o.fullName);
         return cmp != 0 ? cmp : uuid.compareTo(o.uuid);
+    }
+
+    public void debugPrint() {
+        System.out.println("Resume: " + fullName + " (" + uuid + ")");
+        System.out.println("Contacts:");
+        for (Map.Entry<ContactType, String> entry : contacts.entrySet()) {
+            System.out.println("  " + entry.getKey() + ": " + entry.getValue());
+        }
+
+        System.out.println("Sections:");
+        for (Map.Entry<SectionType, Section> entry : sections.entrySet()) {
+            System.out.println("  " + entry.getKey() + ":");
+
+            Section section = entry.getValue();
+
+            if (section instanceof OrganizationSection) {
+                List<Organization> orgs = ((OrganizationSection) section).getOrganizations();
+                if (orgs == null) {
+                    System.out.println("    [WARNING] Organizations list is null!");
+                    continue;
+                }
+                for (Organization org : orgs) {
+                    System.out.println("    Organization: " + org);
+                    if (org.getPositions() == null) {
+                        System.out.println("      [WARNING] Positions list is null!");
+                        continue;
+                    }
+                    for (Organization.Position pos : org.getPositions()) {
+                        System.out.println("      Position: " + pos);
+                    }
+                }
+            } else {
+                System.out.println("    " + section);
+            }
+        }
     }
 }

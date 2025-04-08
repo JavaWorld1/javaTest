@@ -11,6 +11,9 @@ public class OrganizationSection extends Section {
     private static final long serialVersionUID = -5808402581015068556L;
     private List<Organization> organizations;
 
+    public OrganizationSection() {
+    }
+
     public OrganizationSection(Organization... organizations) {
         this(new ArrayList<>(Arrays.asList(organizations)));
     }
@@ -18,9 +21,6 @@ public class OrganizationSection extends Section {
     public OrganizationSection(List<Organization> organizations) {
         Objects.requireNonNull(organizations, "organizations must not be null");
         this.organizations = organizations;
-    }
-
-    public OrganizationSection() {
     }
 
     public List<Organization> getOrganizations() {

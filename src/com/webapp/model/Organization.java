@@ -48,6 +48,10 @@ public class Organization implements Serializable {
         return "Organization(" + linkHomePage + "," + positions + ')';
     }
 
+    public List<Position> getPositions() {
+        return positions;
+    }
+
     public static class Position implements Serializable {
         @Serial
         private static final long serialVersionUID = 7848249962642648127L;

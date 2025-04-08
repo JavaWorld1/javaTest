@@ -2,9 +2,7 @@ package com.webapp.storage;
 
 import com.webapp.exception.NotExistStorageException;
 import com.webapp.exception.StorageException;
-import com.webapp.model.ContactType;
-import com.webapp.model.Resume;
-import com.webapp.model.SectionType;
+import com.webapp.model.*;
 import com.webapp.util.JsonParser;
 
 import java.io.FileInputStream;
@@ -16,8 +14,8 @@ import java.util.Map;
 import java.util.Properties;
 
 public class SqlStorage {
-    public Resume get(String uuid) throws NotExistStorageException {
 
+    public Resume get(String uuid) throws NotExistStorageException {
         Resume resume = null;
         Properties properties = new Properties();
         try (FileInputStream fileInputStream = new FileInputStream("config/resumes.properties")) {
@@ -34,7 +32,6 @@ public class SqlStorage {
             // устанавливает ручное управление транзакцией, и после успешного выполнения операций метода,
             // вызывается connection.commit() для фиксации изменений. В случае возникновения исключения,
             // вызывается connection.rollback() для отката транзакции.
-
 
             try {
                 connection.setAutoCommit(false); // устанавливает ручное управление коммитом транзакции
@@ -54,7 +51,7 @@ public class SqlStorage {
                     }
                 }
 
-                // добавление контаков пользователя в резюме
+                // добавление контактов пользователя в резюме
                 try (PreparedStatement preparedStatement = connection.prepareStatement(
                         "SELECT * FROM contact WHERE resume_uuid =?")) {
                     preparedStatement.setString(1, uuid);
@@ -78,20 +75,17 @@ public class SqlStorage {
                         "SELECT * FROM section WHERE resume_uuid =?")) {
                     preparedStatement.setString(1, uuid);
                     try (ResultSet resultSet = preparedStatement.executeQuery()) {
-                        if (!resultSet.next()) { // resultSet.next() вернет false, что будет означать, что в результате запроса нет строк.
-                            // Однако, в этом случае мы сразу бросаем исключение NotExistStorageException,
-                            // не пытаясь читать данные из результата запроса, поэтому ошибки не будет. Нельзя работать с пустыми строками.
-                            throw new NotExistStorageException(uuid);
-                        }
                         while (resultSet.next()) {
                             String content = resultSet.getString("content");
-                            SectionType type = SectionType.valueOf(resultSet.getString("type"));
+                            SectionType type = SectionType.valueOf(resultSet.getString("type")); // преобразование строки в поле type в json в объект Enum (SectionType.EXPERIENCE)
                             if (content != null) {
-                                resume.addSection(type, JsonParser.read(content)); // перевод строки content из базы  в объект Section.
+                                Section section = JsonParser.read(content, Section.class);
+                                resume.addSection(type, section);
                             }
                         }
                     }
                 }
+
                 // Коммит транзакции, если все успешно
                 connection.commit();
             } catch (SQLException e) { // если возникло одно из следующих исключений:
