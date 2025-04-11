@@ -6,7 +6,7 @@
     </CLASSES>
     <JAVADOC />
     <SOURCES>
-      <root url="jar://$USER_HOME$/.ideaLibSources/jakarta.servlet-api-6.0.0-sources.jar!/" />
+      <root url="jar://$PROJECT_DIR$/lib/jakarta.servlet-api-6.0.0-sources.jar!/" />
     </SOURCES>
   </library>
 </component>

@@ -20,7 +20,7 @@ public class SerializeTest {
         OrganizationSection organizationSection = new OrganizationSection(organization);
 
         // Сериализация объекта в JSON строку
-        String json = JsonParser.write(organizationSection);
+        String json = JsonParser.write(organizationSection, Section.class);
         System.out.println("Serialized JSON:");
         System.out.println(json);
 

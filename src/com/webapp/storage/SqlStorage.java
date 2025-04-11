@@ -13,12 +13,19 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
-public class SqlStorage {
+public class SqlStorage implements Storage {
+
+    private Properties properties = new Properties();
+    private String configFilePath;
+
+    // Конструктор для получения пути к файлу конфигурации
+    public SqlStorage(String configFilePath) {
+        this.configFilePath = configFilePath;
+    }
 
     public Resume get(String uuid) throws NotExistStorageException {
         Resume resume = null;
-        Properties properties = new Properties();
-        try (FileInputStream fileInputStream = new FileInputStream("config/resumes.properties")) {
+        try (FileInputStream fileInputStream = new FileInputStream("WEB-INF/config/resumes.properties")) {
             properties.load(fileInputStream);
         } catch (IOException e) {
             throw new RuntimeException(e);
@@ -70,7 +77,7 @@ public class SqlStorage {
                     }
                 }
 
-                //TODO добавление секций в резюме
+                // добавление секций в резюме
                 try (PreparedStatement preparedStatement = connection.prepareStatement(
                         "SELECT * FROM section WHERE resume_uuid =?")) {
                     preparedStatement.setString(1, uuid);
@@ -103,74 +110,244 @@ public class SqlStorage {
         return resume;
     }
 
-    public void save(Resume resume) throws StorageException {
+    //TODO добавить sqlhelper
 
-    }
+    public void save(Resume r) {
+        try (FileInputStream fileInputStream = new FileInputStream("WEB-INF/config/resumes.properties")) {
+            properties.load(fileInputStream);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        try (Connection conn = DriverManager.getConnection(
+                properties.getProperty("db.url"),
+                properties.getProperty("db.user"),
+                properties.getProperty("db.password"))) {
+            conn.setAutoCommit(false); // начинаем транзакцию
+            try (
+                    PreparedStatement psResume = conn.prepareStatement("INSERT INTO resume (uuid, full_name) VALUES (?, ?)");
+                    PreparedStatement psContact = conn.prepareStatement("INSERT INTO contact (resume_uuid, type, value) VALUES (?, ?, ?)");
+                    PreparedStatement psSection = conn.prepareStatement("INSERT INTO section (resume_uuid, type, content) VALUES (?, ?, ?)")
+            ) {
+                // 1. Сохраняем резюме
+                psResume.setString(1, r.getUuid());
+                psResume.setString(2, r.getFullName());
+                psResume.executeUpdate();
 
-    // вставка контактов resume в таблицу contact
-    private void insertContacts(Connection connection, Resume resume) throws SQLException {
-        try (PreparedStatement preparedStatement = connection.prepareStatement(
-                "INSERT INTO contact (resume_uuid, type, value) VALUES (?, ?, ?)")) {
-            for (Map.Entry<ContactType, String> contactType : resume.getContacts().entrySet()) {
-                preparedStatement.setString(1, resume.getUuid()); // uuid резюме
-                preparedStatement.setString(2, contactType.getKey().name()); // тип контакта
-                preparedStatement.setString(3, contactType.getValue()); // значение контакта в виде строки
-                preparedStatement.executeUpdate();
+                // 2. Сохраняем контакты
+                for (Map.Entry<ContactType, String> entry : r.getContacts().entrySet()) {
+                    psContact.setString(1, r.getUuid());
+                    psContact.setString(2, entry.getKey().name());
+                    psContact.setString(3, entry.getValue());
+                    psContact.addBatch();
+                }
+                psContact.executeBatch();
+
+                // 3. Сохраняем секции
+                for (Map.Entry<SectionType, Section> entry : r.getSections().entrySet()) {
+                    psSection.setString(1, r.getUuid());
+                    psSection.setString(2, entry.getKey().name());
+                    psSection.setString(3, JsonParser.write(entry.getValue(), Section.class)); // сериализуем через JsonParser
+                    psSection.addBatch();
+                }
+                psSection.executeBatch();
+                conn.commit(); // всё прошло успешно — коммитим
+            } catch (Exception e) {
+                conn.rollback(); // в случае ошибки — откат
+                throw new StorageException("Ошибка при сохранении резюме " + r.getUuid(), r.getUuid(), e);
             }
         } catch (SQLException e) {
-            throw new StorageException(e); // Если возникло исключение SQLException
+            throw new StorageException("Ошибка подключения к БД", e);
         }
     }
 
+    @Override
     public List<Resume> getAllSorted() {
-        Map<String, Resume> resumesMap = new LinkedHashMap<>();
-        Properties properties = new Properties();
-        try (FileInputStream fileInputStream = new FileInputStream("config/resumes.properties")) {
+        Map<String, Resume> resumeMap = new LinkedHashMap<>();
+        // Теперь путь передается в конструктор, используем его для загрузки конфигурации
+        try (FileInputStream fileInputStream = new FileInputStream(configFilePath)) {
+            properties.load(fileInputStream);
+        } catch (IOException e) {
+            throw new RuntimeException("Ошибка загрузки файла конфигурации", e);
+        }
+
+        try (Connection conn = DriverManager.getConnection(
+                properties.getProperty("db.url"),
+                properties.getProperty("db.user"),
+                properties.getProperty("db.password"))) {
+            conn.setAutoCommit(false);
+
+            // 1. Получаем все резюме
+            try (PreparedStatement ps = conn.prepareStatement(
+                    "SELECT * FROM resume ORDER BY full_name, uuid")) {
+                try (ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) {
+                        String uuid = rs.getString("uuid");
+                        String fullName = rs.getString("full_name");
+                        resumeMap.put(uuid, new Resume(uuid, fullName));
+                    }
+                }
+            }
+
+            // 2. Добавляем контакты
+            try (PreparedStatement ps = conn.prepareStatement("SELECT * FROM contact")) {
+                try (ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) {
+                        Resume resume = resumeMap.get(rs.getString("resume_uuid"));
+                        if (resume != null) {
+                            ContactType type = ContactType.valueOf(rs.getString("type"));
+                            String value = rs.getString("value");
+                            resume.addContact(type, value);
+                        }
+                    }
+                }
+            }
+
+            // 3. Добавляем секции
+            try (PreparedStatement ps = conn.prepareStatement("SELECT * FROM section")) {
+                try (ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) {
+                        Resume resume = resumeMap.get(rs.getString("resume_uuid"));
+                        if (resume != null) {
+                            SectionType type = SectionType.valueOf(rs.getString("type"));
+                            String content = rs.getString("content");
+                            resume.addSection(type, JsonParser.read(content, Section.class));
+                        }
+                    }
+                }
+            }
+
+            conn.commit();
+            return resumeMap.values().stream().toList();
+
+        } catch (SQLException e) {
+            throw new StorageException("Ошибка при получении всех резюме", e);
+        }
+    }
+
+    @Override
+    public void delete(String uuid) {
+        try (FileInputStream fileInputStream = new FileInputStream("WEB-INF/config/resumes.properties")) {
             properties.load(fileInputStream);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
 
-        try (Connection connection = DriverManager.getConnection(
+        try (Connection conn = DriverManager.getConnection(
                 properties.getProperty("db.url"),
                 properties.getProperty("db.user"),
                 properties.getProperty("db.password"));
-             PreparedStatement preparedStatement = connection.prepareStatement(
-                     "SELECT * FROM resume ORDER BY full_name, uuid")) {
-
-            // Начало транзакции
-            // устанавливает ручное управление транзакцией, и после успешного выполнения операций метода,
-            // вызывается connection.commit() для фиксации изменений. В случае возникновения исключения,
-            // вызывается connection.rollback() для отката транзакции.
-            connection.setAutoCommit(false);
-
-
-            try (ResultSet resultSet = preparedStatement.executeQuery()) {
-                while (resultSet.next()) {
-                    String uuid = resultSet.getString("resume_uuid");
-                    resumesMap.put(uuid, new Resume(uuid, resultSet.getString("full_name")));
-                }
-
-
-                return null;
-            } catch (SQLException e) {
-                // Откат транзакции в случае ошибки
-                connection.rollback();
-                throw new RuntimeException(e);
+             PreparedStatement ps = conn.prepareStatement("DELETE FROM resume WHERE uuid = ?")) {
+            ps.setString(1, uuid);
+            int affected = ps.executeUpdate();
+            if (affected == 0) {
+                throw new NotExistStorageException(uuid);
             }
-
         } catch (SQLException e) {
-            throw new RuntimeException(e);
+            throw new StorageException("Ошибка при удалении резюме", uuid, e);
         }
     }
 
-    public void delete(String uuid) throws NotExistStorageException {
+    @Override
+    public int size() {
+        try (FileInputStream fileInputStream = new FileInputStream("WEB-INF/config/resumes.properties")) {
+            properties.load(fileInputStream);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
 
+        try (Connection conn = DriverManager.getConnection(
+                properties.getProperty("db.url"),
+                properties.getProperty("db.user"),
+                properties.getProperty("db.password"));
+             Statement st = conn.createStatement();
+             ResultSet rs = st.executeQuery("SELECT COUNT(*) FROM resume")) {
+            if (rs.next()) {
+                return rs.getInt(1);
+            }
+            throw new StorageException("Ошибка при подсчете резюме");
+        } catch (SQLException e) {
+            throw new StorageException("Ошибка при подсчете резюме", e);
+        }
     }
 
+    @Override
+    public void update(Resume r) {
+        try (FileInputStream fileInputStream = new FileInputStream("WEB-INF/config/resumes.properties")) {
+            properties.load(fileInputStream);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+
+        try (Connection conn = DriverManager.getConnection(
+                properties.getProperty("db.url"),
+                properties.getProperty("db.user"),
+                properties.getProperty("db.password"))) {
+            conn.setAutoCommit(false);
+
+            try (PreparedStatement ps = conn.prepareStatement("UPDATE resume SET full_name = ? WHERE uuid = ?")) {
+                ps.setString(1, r.getFullName());
+                ps.setString(2, r.getUuid());
+
+                int affected = ps.executeUpdate();
+                if (affected == 0) {
+                    throw new NotExistStorageException(r.getUuid());
+                }
+
+                try (PreparedStatement psDeleteContact = conn.prepareStatement("DELETE FROM contact WHERE resume_uuid = ?");
+                     PreparedStatement psDeleteSection = conn.prepareStatement("DELETE FROM section WHERE resume_uuid = ?")) {
+                    psDeleteContact.setString(1, r.getUuid());
+                    psDeleteContact.executeUpdate();
+                    psDeleteSection.setString(1, r.getUuid());
+                    psDeleteSection.executeUpdate();
+                }
+
+                try (PreparedStatement psContact = conn.prepareStatement("INSERT INTO contact (resume_uuid, type, value) VALUES (?, ?, ?)");
+                     PreparedStatement psSection = conn.prepareStatement("INSERT INTO section (resume_uuid, type, content) VALUES (?, ?, ?)")) {
+                    for (Map.Entry<ContactType, String> entry : r.getContacts().entrySet()) {
+                        psContact.setString(1, r.getUuid());
+                        psContact.setString(2, entry.getKey().name());
+                        psContact.setString(3, entry.getValue());
+                        psContact.addBatch();
+                    }
+                    psContact.executeBatch();
+
+                    for (Map.Entry<SectionType, Section> entry : r.getSections().entrySet()) {
+                        psSection.setString(1, r.getUuid());
+                        psSection.setString(2, entry.getKey().name());
+                        psSection.setString(3, JsonParser.write(entry.getValue(), Section.class));
+                        psSection.addBatch();
+                    }
+                    psSection.executeBatch();
+                }
+
+                conn.commit();
+            } catch (Exception e) {
+                conn.rollback();
+                throw new StorageException("Ошибка при обновлении резюме " + r.getUuid(), r.getUuid(), e);
+            }
+        } catch (SQLException e) {
+            throw new StorageException("Ошибка подключения к БД", e);
+        }
+    }
+
+    @Override
     public void clear() {
-//        ("DELETE FROM resume");
+        try (FileInputStream fileInputStream = new FileInputStream("WEB-INF/config/resumes.properties")) {
+            properties.load(fileInputStream);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+
+        try (Connection conn = DriverManager.getConnection(
+                properties.getProperty("db.url"),
+                properties.getProperty("db.user"),
+                properties.getProperty("db.password"));
+             Statement st = conn.createStatement()) {
+            st.execute("DELETE FROM contact");
+            st.execute("DELETE FROM section");
+            st.execute("DELETE FROM resume");
+        } catch (SQLException e) {
+            throw new StorageException("Ошибка при очистке базы данных", e);
+        }
     }
-
-
 }

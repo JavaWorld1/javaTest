@@ -1,0 +1,16 @@
+<component name="libraryTable">
+  <library name="glassfish.web.jstl.impl" type="repository">
+    <properties maven-id="org.glassfish.web:jstl-impl:1.2" />
+    <CLASSES>
+      <root url="jar://$PROJECT_DIR$/lib/jstl-impl-1.2.jar!/" />
+      <root url="jar://$PROJECT_DIR$/lib/servlet-api-2.5.jar!/" />
+      <root url="jar://$PROJECT_DIR$/lib/jsp-api-2.1.jar!/" />
+      <root url="jar://$PROJECT_DIR$/lib/jstl-api-1.2.jar!/" />
+    </CLASSES>
+    <JAVADOC>
+      <root url="jar://$PROJECT_DIR$/lib/jstl-impl-1.2-javadoc.jar!/" />
+      <root url="jar://$PROJECT_DIR$/lib/jstl-api-1.2-javadoc.jar!/" />
+    </JAVADOC>
+    <SOURCES />
+  </library>
+</component>

@@ -17,8 +17,8 @@ public class JsonParser {
         return GSON.fromJson(json, clazz);
     }
 
-    public static String write(Object object) {
-        return GSON.toJson(object);
+    public static <T> String write(T object, Class<T> clazz) {
+        return GSON.toJson(object, clazz );
     }
 
     // Вложенный адаптер для LocalDate
@@ -34,3 +34,6 @@ public class JsonParser {
         }
     }
 }
+//public static String write(Object object) {
+//    return GSON.toJson(object);
+//}

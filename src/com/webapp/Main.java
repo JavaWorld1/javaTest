@@ -10,8 +10,12 @@ import java.util.UUID;
 public class Main {
 
     // смысл в том, чтобы получить данные из базы данных(строки) и на основе этих данных заполнить поля объекта класса Resume
-    private final static SqlStorage SQL_STORAGE = new SqlStorage();
+    private final static SqlStorage SQL_STORAGE = new SqlStorage("/WEB-INF/config/resumes.properties");
     private final static String UUID_1 = UUID.randomUUID().toString();
+
+    public static Gson getGSON() {
+        return GSON;
+    }
 
     // создание объекта Gson для преобразования объекта Resume в json
     private final static Gson GSON = new Gson().newBuilder().setPrettyPrinting().create();
@@ -50,5 +54,6 @@ public class Main {
 
     public static void main(String[] args) {
         System.out.println(SQL_STORAGE.get("7e9d4f75-9b39-4203-9863-c7843d0157e3"));
+//        System.out.println(SQL_STORAGE.get("8ba3bcff-72d5-488c-80d1-fb91d7c1309b"));
     }
 }
