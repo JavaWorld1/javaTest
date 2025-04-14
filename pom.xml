@@ -26,8 +26,16 @@
 
         <dependency>
             <groupId>org.glassfish.web</groupId>
-            <artifactId>jstl-impl</artifactId>
-            <version>1.2</version>
+            <artifactId>jakarta.servlet.jsp.jstl</artifactId>
+            <version>3.0.1</version>
+        </dependency>
+
+        <!-- Для JSP -->
+        <dependency>
+            <groupId>jakarta.servlet.jsp</groupId>
+            <artifactId>jakarta.servlet.jsp-api</artifactId>
+            <version>3.0.0</version>
+            <scope>provided</scope>
         </dependency>
 
         <!-- Jakarta Servlet API (заменяет старую javax.servlet) -->
@@ -47,7 +55,7 @@
     </dependencies>
 
     <build>
-        <finalName>resumes</finalName>
+        <finalName>resume</finalName>
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
