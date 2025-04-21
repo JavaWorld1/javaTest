@@ -1,6 +1,5 @@
 package web;
 
-
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
@@ -8,6 +7,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import model.Resume;
 import storage.SqlStorage;
+import exception.StorageException;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -16,22 +16,23 @@ import java.io.InputStream;
 public class ResumeServlet extends HttpServlet {
     private SqlStorage storage;
 
-
     @Override
     public void init() throws ServletException {
         super.init();
         try {
             Class.forName("org.postgresql.Driver");
         } catch (ClassNotFoundException e) {
-            throw new RuntimeException(e);
+            throw new RuntimeException("JDBC Driver not found", e);
         }
         try (InputStream input = getClass().getClassLoader().getResourceAsStream("resumes.properties")) {
             if (input == null) {
-                throw new RuntimeException("resumes.properties не найден в classpath");
+                throw new RuntimeException("resumes.properties not found in classpath");
             }
-            storage = new SqlStorage(input);
+            storage = new SqlStorage();
         } catch (IOException e) {
-            throw new RuntimeException("Ошибка загрузки файла конфигурации", e);
+            throw new RuntimeException("Error loading configuration file", e);
+        } catch (Exception e) {
+            throw new RuntimeException("Error initializing SqlStorage", e);
         }
     }
 
@@ -43,25 +44,44 @@ public class ResumeServlet extends HttpServlet {
         String action = request.getParameter("action");
 
         if (action == null) {
-            request.setAttribute("resumes", storage.getAllSorted());
-            request.getRequestDispatcher("/WEB-INF/list.jsp").forward(request, response);
+            try {
+                request.setAttribute("resumes", storage.getAllSorted());
+                request.getRequestDispatcher("/WEB-INF/list.jsp").forward(request, response);
+            } catch (StorageException e) {
+                handleException(response, "Error retrieving all resumes", e);
+            }
             return;
         }
 
         switch (action) {
             case "view":
-                Resume resume = storage.get(uuid);
-                request.setAttribute("resume", resume);
-                request.getRequestDispatcher("/WEB-INF/resume.jsp").forward(request, response);
+                try {
+                    Resume resume = storage.get(uuid);
+                    request.setAttribute("resume", resume);
+                    request.getRequestDispatcher("/WEB-INF/resume.jsp").forward(request, response);
+                } catch (StorageException e) {
+                    handleException(response, "Error retrieving resume", e);
+                }
                 break;
+
             case "delete":
-                storage.delete(uuid);
-                response.sendRedirect("resume");
+                try {
+                    storage.delete(uuid);
+                    response.sendRedirect("resume");
+                } catch (StorageException e) {
+                    handleException(response, "Error deleting resume", e);
+                }
                 break;
+
             case "clear":
-                storage.clear();
-                response.sendRedirect("resume");
+                try {
+                    storage.clear();
+                    response.sendRedirect("resume");
+                } catch (StorageException e) {
+                    handleException(response, "Error clearing storage", e);
+                }
                 break;
+
             default:
                 response.sendRedirect("resume");
                 break;
@@ -80,8 +100,16 @@ public class ResumeServlet extends HttpServlet {
         }
 
         Resume r = new Resume(fullName);
-        storage.save(r);
-        response.sendRedirect("resume");
+        try {
+            storage.save(r);
+            response.sendRedirect("resume");
+        } catch (StorageException e) {
+            handleException(response, "Error saving resume", e);
+        }
+    }
+
+    private void handleException(HttpServletResponse response, String message, Exception e) throws IOException {
+        response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, message + ": " + e.getMessage());
+        e.printStackTrace();
     }
 }
-

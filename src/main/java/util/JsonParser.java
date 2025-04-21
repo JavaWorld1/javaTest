@@ -34,6 +34,3 @@ public class JsonParser {
         }
     }
 }
-//public static String write(Object object) {
-//    return GSON.toJson(object);
-//}
