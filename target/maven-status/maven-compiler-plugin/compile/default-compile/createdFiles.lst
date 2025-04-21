@@ -4,6 +4,7 @@ exception\ExistStorageException.class
 model\Link.class
 util\DateUtil.class
 model\SectionType.class
+web\ResumeServlet$1.class
 web\ResumeServlet.class
 model\Organization$Position.class
 storage\Storage.class

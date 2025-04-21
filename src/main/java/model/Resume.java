@@ -16,6 +16,10 @@ public class Resume implements Comparable<Resume>, Serializable {
     // Unique identifier
     private String uuid;
 
+    public void setFullName(String fullName) {
+        this.fullName = fullName;
+    }
+
     private String fullName;
 
     private final Map<ContactType, String> contacts = new EnumMap<>(ContactType.class);
