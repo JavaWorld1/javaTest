@@ -6,9 +6,12 @@ import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import model.Resume;
+import model.SectionType;
 import storage.SqlStorage;
 
 import java.io.IOException;
+import java.util.EnumMap;
+import java.util.Map;
 
 @WebServlet("/resume")
 public class ResumeServlet extends HttpServlet {
@@ -16,11 +19,7 @@ public class ResumeServlet extends HttpServlet {
 
     @Override
     public void init() {
-        try {
-            storage = new SqlStorage();
-        } catch (Exception e) {
-            throw new RuntimeException("Storage init error", e);
-        }
+        storage = new SqlStorage();
     }
 
     @Override
@@ -37,7 +36,9 @@ public class ResumeServlet extends HttpServlet {
 
         switch (action) {
             case "view":
-                request.setAttribute("resume", storage.get(uuid));
+                Resume resume = storage.get(uuid);
+                request.setAttribute("resume", resume);
+                request.setAttribute("sectionTypes", getSectionTypeMapping());
                 request.getRequestDispatcher("/WEB-INF/resume.jsp").forward(request, response);
                 break;
             case "delete":
@@ -56,11 +57,22 @@ public class ResumeServlet extends HttpServlet {
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
             throws IOException {
+        request.setCharacterEncoding("UTF-8");
         String fullName = request.getParameter("fullName");
         if (fullName != null && !fullName.trim().isEmpty()) {
-            Resume r = new Resume(fullName.trim());
-            storage.save(r);
+            storage.save(new Resume(fullName.trim()));
         }
         response.sendRedirect("resume");
+    }
+
+    private Map<SectionType, String> getSectionTypeMapping() {
+        Map<SectionType, String> mapping = new EnumMap<>(SectionType.class);
+        mapping.put(SectionType.PERSONAL, "TextSection");
+        mapping.put(SectionType.OBJECTIVE, "TextSection");
+        mapping.put(SectionType.ACHIEVEMENT, "ListSection");
+        mapping.put(SectionType.QUALIFICATIONS, "ListSection");
+        mapping.put(SectionType.EXPERIENCE, "OrganizationSection");
+        mapping.put(SectionType.EDUCATION, "OrganizationSection");
+        return mapping;
     }
 }
