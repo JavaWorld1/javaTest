@@ -1,3 +1,4 @@
+storage\SqlStorage$1.class
 storage\SqlHelper.class
 exception\ExistStorageException.class
 model\Link.class

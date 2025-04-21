@@ -1,38 +1,37 @@
-<%@ page contentType="text/html;charset=UTF-8" %>
+<%@ page contentType="text/html;charset=UTF-8" language="java" %>
 <%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
-
 <html>
 <head>
-    <title>Список резюме</title>
+    <title>Список Резюме</title>
 </head>
 <body>
-<h1>Все резюме</h1>
+<h2>Список Резюме</h2>
 
+<!-- Таблица для отображения резюме -->
 <table border="1">
+    <thead>
     <tr>
         <th>Имя</th>
+        <th>UUID</th>
         <th>Действия</th>
     </tr>
+    </thead>
+    <tbody>
     <c:forEach var="resume" items="${resumes}">
         <tr>
             <td>${resume.fullName}</td>
+            <td>${resume.uuid}</td>
             <td>
                 <a href="resume?action=view&uuid=${resume.uuid}">Просмотр</a> |
-                <a href="resume?action=delete&uuid=${resume.uuid}">Удалить</a>
+                <a href="resume?action=delete&uuid=${resume.uuid}" onclick="return confirm('Вы уверены, что хотите удалить?')">Удалить</a>
             </td>
         </tr>
     </c:forEach>
+    </tbody>
 </table>
 
-<h3>Добавить резюме</h3>
-<form method="post" action="resume">
-    <input type="text" name="fullName" placeholder="Введите имя"/>
-    <button type="submit">Сохранить</button>
-</form>
-
-<form method="get" action="resume">
-    <button type="submit" name="action" value="clear">Очистить все</button>
-</form>
+<hr/>
+<p><a href="addResume.jsp">Добавить новое резюме</a></p>
 
 </body>
 </html>
