@@ -18,8 +18,8 @@ public class Resume implements Comparable<Resume>, Serializable {
 
     private String fullName;
 
-    private final Map<model.ContactType, String> contacts = new EnumMap<>(model.ContactType.class);
-    private final Map<model.SectionType, model.Section> sections = new EnumMap<>(model.SectionType.class);
+    private final Map<ContactType, String> contacts = new EnumMap<>(ContactType.class);
+    private final Map<SectionType, model.Section> sections = new EnumMap<>(SectionType.class);
 
     public Resume(String fullName) {
         this(UUID.randomUUID().toString(), fullName);
@@ -43,27 +43,27 @@ public class Resume implements Comparable<Resume>, Serializable {
         return uuid;
     }
 
-    public Map<model.ContactType, String> getContacts() {
+    public Map<ContactType, String> getContacts() {
         return contacts;
     }
 
-    public Map<model.SectionType, model.Section> getSections() {
+    public Map<SectionType, model.Section> getSections() {
         return sections;
     }
 
-    public String getContact(model.ContactType type) {
+    public String getContact(ContactType type) {
         return contacts.get(type);
     }
 
-    public model.Section getSection(model.SectionType type) {
+    public model.Section getSection(SectionType type) {
         return sections.get(type);
     }
 
-    public void addContact(model.ContactType type, String value) {
+    public void addContact(ContactType type, String value) {
         contacts.put(type, value);
     }
 
-    public void addSection(model.SectionType type, model.Section section) {
+    public void addSection(SectionType type, model.Section section) {
         sections.put(type, section);
     }
 
@@ -97,40 +97,5 @@ public class Resume implements Comparable<Resume>, Serializable {
     public int compareTo(Resume o) {
         int cmp = fullName.compareTo(o.fullName);
         return cmp != 0 ? cmp : uuid.compareTo(o.uuid);
-    }
-
-    public void debugPrint() {
-        System.out.println("Resume: " + fullName + " (" + uuid + ")");
-        System.out.println("Contacts:");
-        for (Map.Entry<model.ContactType, String> entry : contacts.entrySet()) {
-            System.out.println("  " + entry.getKey() + ": " + entry.getValue());
-        }
-
-        System.out.println("Sections:");
-        for (Map.Entry<model.SectionType, model.Section> entry : sections.entrySet()) {
-            System.out.println("  " + entry.getKey() + ":");
-
-            model.Section section = entry.getValue();
-
-            if (section instanceof model.OrganizationSection) {
-                List<model.Organization> orgs = ((model.OrganizationSection) section).getOrganizations();
-                if (orgs == null) {
-                    System.out.println("    [WARNING] Organizations list is null!");
-                    continue;
-                }
-                for (model.Organization org : orgs) {
-                    System.out.println("    Organization: " + org);
-                    if (org.getPositions() == null) {
-                        System.out.println("      [WARNING] Positions list is null!");
-                        continue;
-                    }
-                    for (model.Organization.Position pos : org.getPositions()) {
-                        System.out.println("      Position: " + pos);
-                    }
-                }
-            } else {
-                System.out.println("    " + section);
-            }
-        }
     }
 }
